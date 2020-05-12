@@ -30,7 +30,6 @@ namespace UnityHierarchyFolders.Editor
         private static bool _isInitialized;
         private static bool _hasProcessedFrame = true;
 
-
         // Reflected members
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Special naming scheme")]
         private static PropertyInfo prop_sceneHierarchy;
@@ -57,15 +56,15 @@ namespace UnityHierarchyFolders.Editor
         public static int IconRowCount => IconColors.GetLength(1);
 
         public static readonly Color[,] IconColors = {
-            {new Color(0.09f, 0.57f, 0.82f), new Color(0.05f, 0.34f, 0.48f),},
-            {new Color(0.09f, 0.67f, 0.67f), new Color(0.05f, 0.42f, 0.42f),},
-            {new Color(0.23f, 0.73f, 0.36f), new Color(0.15f, 0.41f, 0.22f),},
-            {new Color(0.55f, 0.35f, 0.71f), new Color(0.35f, 0.24f, 0.44f),},
-            {new Color(0.78f, 0.27f, 0.55f), new Color(0.52f, 0.15f, 0.35f),},
-            {new Color(0.80f, 0.66f, 0.10f), new Color(0.56f, 0.46f, 0.02f),},
-            {new Color(0.91f, 0.49f, 0.13f), new Color(0.62f, 0.33f, 0.07f),},
-            {new Color(0.91f, 0.30f, 0.24f), new Color(0.77f, 0.15f, 0.09f),},
-            {new Color(0.35f, 0.49f, 0.63f), new Color(0.24f, 0.33f, 0.42f),},
+			{ new Color(0.09f, 0.57f, 0.82f), new Color(0.05f, 0.34f, 0.48f), },
+			{ new Color(0.09f, 0.67f, 0.67f), new Color(0.05f, 0.42f, 0.42f), },
+			{ new Color(0.23f, 0.73f, 0.36f), new Color(0.15f, 0.41f, 0.22f), },
+			{ new Color(0.55f, 0.35f, 0.71f), new Color(0.35f, 0.24f, 0.44f), },
+			{ new Color(0.78f, 0.27f, 0.55f), new Color(0.52f, 0.15f, 0.35f), },
+			{ new Color(0.80f, 0.66f, 0.10f), new Color(0.56f, 0.46f, 0.02f), },
+			{ new Color(0.91f, 0.49f, 0.13f), new Color(0.62f, 0.33f, 0.07f), },
+			{ new Color(0.91f, 0.30f, 0.24f), new Color(0.77f, 0.15f, 0.09f), },
+			{ new Color(0.35f, 0.49f, 0.63f), new Color(0.24f, 0.33f, 0.42f), },
         };
 
         [InitializeOnLoadMethod]
@@ -145,8 +144,8 @@ namespace UnityHierarchyFolders.Editor
 
             // reflection
 
-            const BindingFlags BindingAll = BindingFlags.Public
-              | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
+			const BindingFlags BindingAll = BindingFlags.Public |
+				BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
 
             var assembly = typeof(SceneView).Assembly;
 
