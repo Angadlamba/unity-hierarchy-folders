@@ -103,26 +103,26 @@ namespace UnityHierarchyFolders.Runtime
 		private void HandleSelection()
 		{
 			if (Selection.gameObjects.Contains(gameObject))
-				imSelected = true;
+				_imSelected = true;
 			else
-				imSelected = false;
+				_imSelected = false;
 
-			foreach (var child in allChildren)
+			foreach (var child in _allChildren)
 			{
 				if (Selection.gameObjects.Contains(child.gameObject))
 				{
-					aChildOfMineIsSelected = true;
+					_aChildOfMineIsSelected = true;
 					break;
 				}
 				else
-					aChildOfMineIsSelected = false;
+					_aChildOfMineIsSelected = false;
 			}
 
-			selectedChildren.Clear();
-			foreach (var child in allChildren)
+			_selectedChildren.Clear();
+			foreach (var child in _allChildren)
 			{
 				if (Selection.gameObjects.Contains(child.gameObject))
-					selectedChildren.Add(child);
+					_selectedChildren.Add(child);
 			}
 		}
 
@@ -133,7 +133,7 @@ namespace UnityHierarchyFolders.Runtime
 			if (GUIEvent.type == EventType.MouseDown && Event.current.button == 0)
 			{
 				if (!gameObject.GetComponent<RectTransform>())
-					if (imSelected || aChildOfMineIsSelected)
+					if (_imSelected || _aChildOfMineIsSelected)
 						RecordUndo();
 			}
 
@@ -148,10 +148,10 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			Undo.RegisterCompleteObjectUndo(transform, "Custom Undo");
 
-			if (!aChildOfMineIsSelected)
+			if (!_aChildOfMineIsSelected)
 				return;
 
-			foreach (var child in selectedChildren)
+			foreach (var child in _selectedChildren)
 				Undo.RegisterCompleteObjectUndo(child, "Custom Undo");
 
 			foreach (Transform child in transform)
@@ -186,13 +186,13 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void UpdatePositionBasedOnChildrenBoundsCenter()
 		{
-			if (allChildren == null || allChildren.Count <= 0)
+			if (_allChildren == null || _allChildren.Count <= 0)
 				return;
 
 			if (Selection.activeGameObject == null)
 				return;
 
-			if (!allChildren.Contains(Selection.activeGameObject.transform))
+			if (!_allChildren.Contains(Selection.activeGameObject.transform))
 				return;
 
 			/* if (!(Tools.current == Tool.Move || Tools.current == Tool.Scale))
@@ -209,8 +209,8 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void SetAllChildren()
 		{
-			allChildren.Clear();
-			allChildren = RecursiveChildrenSearch(transform);
+			_allChildren.Clear();
+			_allChildren = RecursiveChildrenSearch(transform);
 		}
 
 		private List<Transform> RecursiveChildrenSearch(Transform parent)
@@ -242,7 +242,7 @@ namespace UnityHierarchyFolders.Runtime
 			if (transform.childCount <= 0)
 				return;
 
-			var childrenTransformCenter = GetChildrenTransformCenter(allChildren);
+			var childrenTransformCenter = GetChildrenTransformCenter(_allChildren);
 			var childrenBoundscenter = GetChildrenBoundsCenter(childrenTransformCenter);
 			SetPositionAndCorrectChildren(childrenBoundscenter);
 		}
@@ -251,10 +251,10 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			var transformsCenter = Vector3.zero;
 
-			foreach (var child in allChildren)
+			foreach (var child in _allChildren)
 				transformsCenter += child.position;
 
-			transformsCenter /= allChildren.Count;
+			transformsCenter /= _allChildren.Count;
 
 			return transformsCenter;
 		}
@@ -263,7 +263,7 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			var boundsCenter = new Bounds(center, Vector3.one);
 
-			foreach (var child in allChildren)
+			foreach (var child in _allChildren)
 			{
 				if (!child.GetComponent<Renderer>())
 					continue;
@@ -321,10 +321,10 @@ namespace UnityHierarchyFolders.Runtime
 				DestroyImmediate(this);
 		}
 
-		private bool imSelected = false;
-		private bool aChildOfMineIsSelected = false;
-		private List<Transform> selectedChildren = new List<Transform>();
-		private List<Transform> allChildren = new List<Transform>();
+		private bool _imSelected = false;
+		private bool _aChildOfMineIsSelected = false;
+		private List<Transform> _selectedChildren = new List<Transform>();
+		private List<Transform> _allChildren = new List<Transform>();
 #endif
 		/// <summary>Takes direct children and links them to the parent transform or global.</summary>
 		public void Flatten()
