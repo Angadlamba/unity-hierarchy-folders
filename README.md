@@ -15,6 +15,7 @@ Designed to help with project organization, maintaining flexibility, not affecti
 #### Observations
 > 1. For Folders to work correctly with **RectTransform**s it needs a **RectTransform** of it's own, to do this automatically just create a new Hierarchy Folder as a child of a Game Object that has a **RectTransform**, like a Canvas for example.
 > 2. Changing the Folder's **RectTransform** values is not advised in order to maintain consistent results, I decided against hiding it just in case anyone needs to use it, but using Folders with **RectTransform**s was designed to be *set & forget*.
+> 3. Keep in mind that when a child is reparented it's Transform values change based on the new parent's Transform values. If for some reason you have code that relies on a Game Object having very particular Transform values things will break if it is a child of a Folder, because, as expected, it will get reparented on Play/Build and it's Transform values will change. Also, If a folder is scaled all children will keep their local scale of 1, 1, 1 while parented to the Folder, but will inherit the Folder's scale once reparented. I consider this a feature, but it may trip up people that are not expecting it to be the case.
 
 ## Installation
 
