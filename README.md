@@ -7,10 +7,14 @@ Designed to help with project organization, maintaining flexibility, not affecti
 ## Features
 
 1. Deletes themselves on **Play** and **Build** while keeping all children in place. Helping project organization in Editor while keeping performance at runtime.
-2. Can be **Translated**, **Rotated** and **Scaled** freely just like any Game Object, yes the children will maintain the Transform modifications after the folders delete themselves.
+2. Can be **Translated**, **Rotated** and **Scaled** freely just like any Game Object, yes the children will maintain the Transform modifications after the Folders delete themselves.
 3. Behaves as a pivot that is always centered at their children for easy manipulation.
-4. Folder icon colors.
+4. Works just fine with **RectTransforms**. (You can simply work normally as if the Folder is not even there).
+5. Folder icon colors, for a little bit of customization.
 
+#### Observations
+> 1. For Folders to work correctly with **RectTransform**s it needs a **RectTransform** of it's own, to do this automatically just create a new Hierarchy Folder as a child of a Game Object that has a **RectTransform**, like a Canvas for example.
+> 2. Changing the Folder's **RectTransform** values is not advised in order to maintain consistent results, I decided against hiding it just in case anyone needs to use it, but using Folders with **RectTransform**s was designed to be *set & forget*.
 
 ## Installation
 
