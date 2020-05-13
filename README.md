@@ -1,6 +1,16 @@
 # Folders for Unity Hierarchy
 
-Specialized folder objects for Unity Hierarchy.
+Simple specialized folder objects for Unity Hierarchy.
+
+Designed to help with project organization, maintaining flexibility, not affecting performance at runtime, while not getting in the way in Editor.
+
+## Features
+
+1. Deletes themselves on **Play** and **Build** while keeping all children in place. Helping project organization in Editor while keeping performance at runtime.
+2. Can be **Translated**, **Rotated** and **Scaled** freely just like any Game Object, yes the children will maintain the Transform modifications after the folders delete themselves.
+3. Behaves as a pivot that is always centered at their children for easy manipulation.
+4. Folder icon colors.
+
 
 ## Installation
 
