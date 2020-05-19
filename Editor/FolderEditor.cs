@@ -9,6 +9,7 @@ namespace UnityHierarchyFolders.Editor
 	public class FolderEditor : UnityEditor.Editor
 	{
 		private SerializedProperty _worldPositionStays;
+		private SerializedProperty _isLocked;
 
 		public override bool RequiresConstantRepaint() => true;
 
@@ -16,12 +17,20 @@ namespace UnityHierarchyFolders.Editor
 		{
 			RenderColorPicker();
 			SetMaintainChildrenWorldPositions();
+			SetLockFolder();
 		}
 
 		private void SetMaintainChildrenWorldPositions()
 		{
 			_worldPositionStays = serializedObject.FindProperty("_maintainChildrenWorldPositions");
 			EditorGUILayout.PropertyField(_worldPositionStays);
+			serializedObject.ApplyModifiedProperties();
+		}
+
+		private void SetLockFolder()
+		{
+			_isLocked = serializedObject.FindProperty("_isLocked");
+			EditorGUILayout.PropertyField(_isLocked);
 			serializedObject.ApplyModifiedProperties();
 		}
 

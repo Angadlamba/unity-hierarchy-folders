@@ -1,29 +1,31 @@
+using UnityEngine;
+using Object = UnityEngine.Object;
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 #endif
-using UnityEngine;
 
 namespace UnityHierarchyFolders.Runtime
 {
 #if UNITY_EDITOR
 	/// <summary>
-	/// <para>Extension to Components to check if there are no dependencies to itself.</para>
-	/// <para>
-	///     taken from:
-	///     <see cref="!:https://gamedev.stackexchange.com/a/140799">
-	///         StackOverflow: Check if a game object's component can be destroyed
-	///     </see>
-	/// </para>
+	///     <para>Extension to Components to check if there are no dependencies to itself.</para>
+	///     <para>
+	///         taken from:
+	///         <see cref="!:https://gamedev.stackexchange.com/a/140799">
+	///             StackOverflow: Check if a game object's component can be destroyed
+	///         </see>
+	///     </para>
 	/// </summary>
 	internal static class CanDestroyExtension
 	{
 		private static bool Requires(Type obj, Type req) => Attribute.IsDefined(obj, typeof(RequireComponent)) &&
-			Attribute.GetCustomAttributes(obj, typeof(RequireComponent)).OfType<RequireComponent>()
-			// RequireComponent has up to 3 required types per requireComponent, because of course.
-			.SelectMany(rc => new Type[] { rc.m_Type0, rc.m_Type1, rc.m_Type2 }).Any(t => t != null && t.IsAssignableFrom(req));
+		                                                    Attribute.GetCustomAttributes(obj, typeof(RequireComponent)).OfType<RequireComponent>()
+		                                                              // RequireComponent has up to 3 required types per requireComponent, because of course.
+		                                                             .SelectMany(rc => new[] { rc.m_Type0, rc.m_Type1, rc.m_Type2 })
+		                                                             .Any(t => t != null && t.IsAssignableFrom(req));
 
 		/// <summary>Checks whether the stated component can be destroyed without violating dependencies.</summary>
 		/// <returns>Is component destroyable?</returns>
@@ -38,19 +40,40 @@ namespace UnityHierarchyFolders.Runtime
 	{
 		[SerializeField] private bool _maintainChildrenWorldPositions = true;
 
+		/// <summary>Takes direct children and links them to the parent transform or global.</summary>
+		public void Flatten()
+		{
+			// gather first-level children
+			var index = transform.GetSiblingIndex(); // keep components in logical order
+			foreach (var child in transform.GetComponentsInChildren<Transform>(true))
+			{
+				if (child.parent == transform)
+				{
+					child.name = $"{name}/{child.name}";
+					child.SetParent(transform.parent, _maintainChildrenWorldPositions);
+					child.SetSiblingIndex(++index);
+				}
+			}
+
+			if (Application.isPlaying)
+				Destroy(gameObject);
+			else
+				DestroyImmediate(gameObject);
+		}
+
 #if UNITY_EDITOR
+		[SerializeField] private bool _isLocked = false;
 		[SerializeField] private int _colorIndex = 0;
 
 		/// <summary>The set of Folder objects.</summary>
-		public static Dictionary<int, int> Folders = new Dictionary<int, int>();
+		public static Dictionary<int, int> folders = new Dictionary<int, int>();
 
+		public bool IsLocked => _isLocked;
 		public int ColorIndex => _colorIndex;
 
 		private void Start()
 		{
 			AddFolderData();
-			ResetTransform();
-			SetAllChildrenAndCenter();
 			SubscribeToCallbacks();
 		}
 
@@ -64,49 +87,110 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			AddFolderData();
 			EnsureExclusiveComponent();
+			HandleFolderLocking();
+			HandleSubscribeToEditorUpdate();
 		}
 
 		private void Reset()
 		{
 			AddFolderData();
 			EnsureExclusiveComponent();
+			HandleFolderLocking();
 		}
 
 		/// <summary>
-		/// Gets the icon index associated with the specified object.
+		///     Gets the icon index associated with the specified object.
 		/// </summary>
 		/// <param name="obj">Test object.</param>
 		/// <param name="index">The icon index.</param>
 		/// <returns>True if the specified object is a folder with a registered icon index.</returns>
-		public static bool TryGetIconIndex(UnityEngine.Object obj, out int index)
+		public static bool TryGetIconIndex(Object obj, out int index)
 		{
 			index = -1;
-			return obj && Folders.TryGetValue(obj.GetInstanceID(), out index);
+			return obj && folders.TryGetValue(obj.GetInstanceID(), out index);
 		}
 
-		public static bool IsFolder(UnityEngine.Object obj) => Folders.ContainsKey(obj.GetInstanceID());
+		public static bool IsFolder(Object obj) => folders.ContainsKey(obj.GetInstanceID());
 
 		private void SubscribeToCallbacks()
 		{
-			Selection.selectionChanged += HandleSelection;
-			EditorApplication.hierarchyChanged += SetAllChildrenAndCenter;
-			SceneView.duringSceneGui += GUIEvents;
+			Selection.selectionChanged += OnSelectionChanged;
+			EditorApplication.hierarchyChanged += OnHierarchyChanged;
+			SceneView.duringSceneGui += GuiEvents;
 		}
 
 		private void UnsubscribeToCallbacks()
 		{
-			Selection.selectionChanged -= HandleSelection;
-			EditorApplication.hierarchyChanged -= SetAllChildrenAndCenter;
-			SceneView.duringSceneGui -= GUIEvents;
+			Selection.selectionChanged -= OnSelectionChanged;
+			EditorApplication.hierarchyChanged -= OnHierarchyChanged;
+			SceneView.duringSceneGui -= GuiEvents;
+			EditorApplication.update -= ResetTransform;
 		}
 
-		private void HandleSelection()
+		private void OnSelectionChanged()
 		{
-			if (Selection.gameObjects.Contains(gameObject))
-				_imSelected = true;
-			else
-				_imSelected = false;
+			if (Selection.activeGameObject == null || Selection.gameObjects == null || Selection.gameObjects.Length <= 0)
+				return;
 
+			HandleSubscribeToEditorUpdate();
+			HandleHidingTools();
+			HandleChildIsSelected();
+			SetSelectedChildren();
+		}
+
+		private void HandleSubscribeToEditorUpdate()
+		{
+			if (transform.parent == null)
+				return;
+
+			foreach (var parent in _allParents)
+			{
+				if (Selection.gameObjects.Contains(parent.gameObject) && _isLocked)
+					EditorApplication.update += ResetTransform;
+				else
+					EditorApplication.update -= ResetTransform;
+				return;
+			}
+
+			EditorApplication.update -= ResetTransform;
+		}
+
+		private static List<Transform> RecursiveParentSearch(Transform child)
+		{
+			if (child.parent == null)
+				return new List<Transform>();
+
+			var parents = new List<Transform>();
+			
+			parents.Add(child.transform.parent);
+
+			if (child.transform.parent.parent != null)
+			{
+				foreach (var grandParent in RecursiveParentSearch(child.transform.parent))
+				{
+					parents.Add(grandParent);
+				}
+			}
+
+			return parents;
+		}
+		
+		private static void HandleHidingTools()
+		{
+			foreach (var go in Selection.gameObjects)
+			{
+				if (go.TryGetComponent<Folder>(out var folder) && folder.IsLocked)
+				{
+					Tools.hidden = true;
+					return;
+				}
+			}
+
+			Tools.hidden = false;
+		}
+
+		private void HandleChildIsSelected()
+		{
 			foreach (var child in _allChildren)
 			{
 				if (Selection.gameObjects.Contains(child.gameObject))
@@ -114,10 +198,13 @@ namespace UnityHierarchyFolders.Runtime
 					_aChildOfMineIsSelected = true;
 					break;
 				}
-				else
-					_aChildOfMineIsSelected = false;
-			}
 
+				_aChildOfMineIsSelected = false;
+			}
+		}
+
+		private void SetSelectedChildren()
+		{
 			_selectedChildren.Clear();
 			foreach (var child in _allChildren)
 			{
@@ -126,22 +213,32 @@ namespace UnityHierarchyFolders.Runtime
 			}
 		}
 
-		private void GUIEvents(SceneView sceneView)
+		private void GuiEvents(SceneView sceneView)
 		{
-			Event GUIEvent = Event.current;
+			var guiEvent = Event.current;
 
-			if (GUIEvent.type == EventType.MouseDown && Event.current.button == 0)
+			switch (guiEvent.type)
 			{
-				if (!gameObject.GetComponent<RectTransform>())
-					if (_imSelected || _aChildOfMineIsSelected)
-						RecordUndo();
+				case EventType.MouseDown when Event.current.button == 0:
+				{
+					Mouse0Pressed();
+					break;
+				}
+				case EventType.MouseUp when Event.current.button == 0:
+				{
+					Mouse0Released();
+					break;
+				}
 			}
+		}
 
-			if (GUIEvent.type == EventType.MouseUp && Event.current.button == 0)
-			{
-				Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
-				UpdatePositionBasedOnChildrenBoundsCenter();
-			}
+		private void Mouse0Pressed()
+		{
+			if (gameObject.GetComponent<RectTransform>())
+				return;
+
+			if (_imSelected || _aChildOfMineIsSelected)
+				RecordUndo();
 		}
 
 		private void RecordUndo()
@@ -158,15 +255,18 @@ namespace UnityHierarchyFolders.Runtime
 				Undo.RegisterCompleteObjectUndo(child, "Custom Undo");
 		}
 
-		private void AddFolderData() => Folders[this.gameObject.GetInstanceID()] = this._colorIndex;
+		private void Mouse0Released()
+		{
+			Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
+			UpdatePositionBasedOnChildrenBoundsCenter();
+		}
 
-		private void RemoveFolderData() => Folders.Remove(this.gameObject.GetInstanceID());
+		private void AddFolderData() => folders[gameObject.GetInstanceID()] = _colorIndex;
+
+		private void RemoveFolderData() => folders.Remove(gameObject.GetInstanceID());
 
 		private void ResetTransform()
 		{
-			if (transform.childCount > 0)
-				return;
-
 			if (gameObject.TryGetComponent<RectTransform>(out var rectTransform))
 			{
 				rectTransform.sizeDelta = Vector2.zero;
@@ -184,6 +284,35 @@ namespace UnityHierarchyFolders.Runtime
 			}
 		}
 
+		private void HandleFolderLocking()
+		{
+			if (_isLocked)
+			{
+				ResetTransformKeepChildrenInPlace();
+				transform.hideFlags = HideFlags.HideInInspector;
+				Tools.hidden = true;
+			}
+			else
+			{
+				SetAllChildren();
+				CenterAtChildrenBoundingBox();
+				transform.hideFlags = HideFlags.None;
+				Tools.hidden = false;
+			}
+		}
+
+		private void ResetTransformKeepChildrenInPlace()
+		{
+			var previousPosition = transform.position;
+
+			ResetTransform();
+
+			var positionChange = transform.position - previousPosition;
+
+			foreach (Transform child in transform)
+				child.transform.position -= positionChange;
+		}
+
 		private void UpdatePositionBasedOnChildrenBoundsCenter()
 		{
 			if (_allChildren == null || _allChildren.Count <= 0)
@@ -195,16 +324,20 @@ namespace UnityHierarchyFolders.Runtime
 			if (!_allChildren.Contains(Selection.activeGameObject.transform))
 				return;
 
-			/* if (!(Tools.current == Tool.Move || Tools.current == Tool.Scale))
-				return; */
-
 			CenterAtChildrenBoundingBox();
 		}
 
-		private void SetAllChildrenAndCenter()
+		private void OnHierarchyChanged()
 		{
 			SetAllChildren();
+			SetAllParents();
 			CenterAtChildrenBoundingBox();
+		}
+
+		private void SetAllParents()
+		{
+			_allParents.Clear();
+			_allParents = RecursiveParentSearch(transform);
 		}
 
 		private void SetAllChildren()
@@ -213,22 +346,22 @@ namespace UnityHierarchyFolders.Runtime
 			_allChildren = RecursiveChildrenSearch(transform);
 		}
 
-		private List<Transform> RecursiveChildrenSearch(Transform parent)
+		private static List<Transform> RecursiveChildrenSearch(Transform parent)
 		{
 			if (parent.childCount <= 0)
 				return new List<Transform>();
 
-			List<Transform> children = new List<Transform>();
+			var children = new List<Transform>();
 
 			foreach (Transform child in parent)
 			{
 				children.Add(child);
 
-				if (child.childCount > 0)
-				{
-					foreach (var grandChild in RecursiveChildrenSearch(child))
-						children.Add(grandChild);
-				}
+				if (child.childCount <= 0)
+					continue;
+
+				foreach (var grandChild in RecursiveChildrenSearch(child))
+					children.Add(grandChild);
 			}
 
 			return children;
@@ -236,6 +369,9 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void CenterAtChildrenBoundingBox()
 		{
+			if (_isLocked)
+				return;
+
 			if (gameObject.GetComponent<RectTransform>())
 				return;
 
@@ -243,8 +379,8 @@ namespace UnityHierarchyFolders.Runtime
 				return;
 
 			var childrenTransformCenter = GetChildrenTransformCenter(_allChildren);
-			var childrenBoundscenter = GetChildrenBoundsCenter(childrenTransformCenter);
-			SetPositionAndCorrectChildren(childrenBoundscenter);
+			var childrenBoundsCenter = GetChildrenBoundsCenter(childrenTransformCenter);
+			SetPositionAndCorrectChildren(childrenBoundsCenter);
 		}
 
 		private Vector3 GetChildrenTransformCenter(List<Transform> transforms)
@@ -276,7 +412,6 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void SetPositionAndCorrectChildren(Vector3 position)
 		{
-
 			var previousPosition = transform.position;
 			transform.position = position;
 			var positionChange = transform.position - previousPosition;
@@ -285,12 +420,10 @@ namespace UnityHierarchyFolders.Runtime
 				child.transform.position -= positionChange;
 		}
 
-		private bool AskDelete() => EditorUtility.DisplayDialog(
-			title: "Can't add script",
-			message: "Folders shouldn't be used with other components. Which component should be kept?",
-			ok: "Folder",
-			cancel: "Component"
-		);
+		private bool AskDelete() => EditorUtility.DisplayDialog("Can't add script",
+		                                                        "Folders shouldn't be used with other components. Which component should be kept?",
+		                                                        "Folder",
+		                                                        "Component");
 
 		/// <summary>Delete all components regardless of dependency hierarchy.</summary>
 		/// <param name="comps">Which components to delete.</param>
@@ -309,14 +442,14 @@ namespace UnityHierarchyFolders.Runtime
 		/// <summary>Ensure that the Folder is the only component.</summary>
 		private void EnsureExclusiveComponent()
 		{
-			var existingComponents = this.GetComponents<Component>().Where(c => c != this && !typeof(Transform).IsAssignableFrom(c.GetType()));
+			var existingComponents = GetComponents<Component>().Where(c => c != this && !typeof(Transform).IsAssignableFrom(c.GetType()));
 
 			// no items means no actions anyways
 			if (!existingComponents.Any())
 				return;
 
-			if (this.AskDelete())
-				this.DeleteComponents(existingComponents);
+			if (AskDelete())
+				DeleteComponents(existingComponents);
 			else
 				DestroyImmediate(this);
 		}
@@ -325,26 +458,7 @@ namespace UnityHierarchyFolders.Runtime
 		private bool _aChildOfMineIsSelected = false;
 		private List<Transform> _selectedChildren = new List<Transform>();
 		private List<Transform> _allChildren = new List<Transform>();
+		private List<Transform> _allParents = new List<Transform>();
 #endif
-		/// <summary>Takes direct children and links them to the parent transform or global.</summary>
-		public void Flatten()
-		{
-			// gather first-level children
-			int index = this.transform.GetSiblingIndex(); // keep components in logical order
-			foreach (var child in this.transform.GetComponentsInChildren<Transform>(includeInactive: true))
-			{
-				if (child.parent == this.transform)
-				{
-					child.name = $"{this.name}/{child.name}";
-					child.SetParent(this.transform.parent, _maintainChildrenWorldPositions);
-					child.SetSiblingIndex(++index);
-				}
-			}
-
-			if (Application.isPlaying)
-				Destroy(this.gameObject);
-			else
-				DestroyImmediate(this.gameObject);
-		}
 	}
 }
