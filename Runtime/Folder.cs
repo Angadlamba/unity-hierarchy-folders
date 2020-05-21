@@ -38,7 +38,7 @@ namespace UnityHierarchyFolders.Runtime
 	[ExecuteAlways]
 	public class Folder : MonoBehaviour
 	{
-		[SerializeField] private bool _maintainChildrenWorldPositions = true;
+		[SerializeField] private bool maintainChildrenWorldPositions = true;
 
 		/// <summary>Takes direct children and links them to the parent transform or global.</summary>
 		public void Flatten()
@@ -50,7 +50,7 @@ namespace UnityHierarchyFolders.Runtime
 				if (child.parent == transform)
 				{
 					child.name = $"{name}/{child.name}";
-					child.SetParent(transform.parent, _maintainChildrenWorldPositions);
+					child.SetParent(transform.parent, maintainChildrenWorldPositions);
 					child.SetSiblingIndex(++index);
 				}
 			}
@@ -62,14 +62,14 @@ namespace UnityHierarchyFolders.Runtime
 		}
 
 #if UNITY_EDITOR
-		[SerializeField] private bool _isLocked = false;
-		[SerializeField] private int _colorIndex = 0;
+		[SerializeField] private bool isLocked = false;
+		[SerializeField] private int colorIndex = 0;
 
 		/// <summary>The set of Folder objects.</summary>
 		public static Dictionary<int, int> folders = new Dictionary<int, int>();
 
-		public bool IsLocked => _isLocked;
-		public int ColorIndex => _colorIndex;
+		public bool IsLocked => isLocked;
+		public int ColorIndex => colorIndex;
 
 		private void Start()
 		{
@@ -146,7 +146,7 @@ namespace UnityHierarchyFolders.Runtime
 
 			foreach (var parent in _deepParents)
 			{
-				if (Selection.gameObjects.Contains(parent.gameObject) && _isLocked)
+				if (Selection.gameObjects.Contains(parent.gameObject) && isLocked)
 					EditorApplication.update += ResetTransform;
 				else
 					EditorApplication.update -= ResetTransform;
@@ -177,7 +177,7 @@ namespace UnityHierarchyFolders.Runtime
 			else
 				_imSelected = false;
 		}
-		
+
 		private void HandleChildIsSelected()
 		{
 			foreach (var child in _deepChildren)
@@ -230,7 +230,7 @@ namespace UnityHierarchyFolders.Runtime
 
 			if (!(_imSelected || _aChildOfMineIsSelected))
 				return;
-			
+
 			Undo.RegisterCompleteObjectUndo(transform, "Custom Undo");
 			Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
 
@@ -248,7 +248,7 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void Mouse0Released() => UpdatePositionBasedOnChildrenBoundsCenter();
 
-		private void AddFolderData() => folders[gameObject.GetInstanceID()] = _colorIndex;
+		private void AddFolderData() => folders[gameObject.GetInstanceID()] = colorIndex;
 
 		private void RemoveFolderData() => folders.Remove(gameObject.GetInstanceID());
 
@@ -273,7 +273,7 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void HandleFolderLocking()
 		{
-			if (_isLocked)
+			if (isLocked)
 			{
 				ResetTransformKeepChildrenInPlace();
 				transform.hideFlags = HideFlags.HideInInspector;
@@ -287,16 +287,16 @@ namespace UnityHierarchyFolders.Runtime
 				Tools.hidden = false;
 			}
 		}
-		
+
 		private void ResetTransformKeepChildrenInPlace()
 		{
 			TryRecordUndo();
-			List<Vector3> previousChildrenPositions = new List<Vector3>();
-			List<Quaternion> previousChildrenRotations = new List<Quaternion>();
-			List<Vector3> previousChildrenScales = new List<Vector3>();
+			var previousChildrenPositions = new List<Vector3>();
+			var previousChildrenRotations = new List<Quaternion>();
+			var previousChildrenScales = new List<Vector3>();
 
 			SetChildren();
-			
+
 			foreach (var child in _children)
 			{
 				previousChildrenPositions.Add(child.position);
@@ -306,7 +306,7 @@ namespace UnityHierarchyFolders.Runtime
 
 			ResetTransform();
 
-			for (int i = 0; i < _children.Count; i++)
+			for (var i = 0; i < _children.Count; i++)
 			{
 				_children[i].position = previousChildrenPositions[i];
 				_children[i].rotation = previousChildrenRotations[i];
@@ -366,7 +366,7 @@ namespace UnityHierarchyFolders.Runtime
 
 			return parents;
 		}
-		
+
 		private void SetDeepChildren()
 		{
 			_deepChildren.Clear();
@@ -392,11 +392,11 @@ namespace UnityHierarchyFolders.Runtime
 			}
 
 			return children;
-		}	
-		
+		}
+
 		private void CenterAtChildrenBoundingBox()
 		{
-			if (_isLocked)
+			if (isLocked)
 				return;
 
 			if (gameObject.GetComponent<RectTransform>())
