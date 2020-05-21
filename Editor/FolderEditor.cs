@@ -17,7 +17,6 @@ namespace UnityHierarchyFolders.Editor
 		{
 			RenderColorPicker();
 			SetMaintainChildrenWorldPositions();
-			SetLockFolder();
 		}
 
 		private void SetMaintainChildrenWorldPositions()
@@ -26,14 +25,7 @@ namespace UnityHierarchyFolders.Editor
 			EditorGUILayout.PropertyField(_worldPositionStays);
 			serializedObject.ApplyModifiedProperties();
 		}
-
-		private void SetLockFolder()
-		{
-			_isLocked = serializedObject.FindProperty("isLocked");
-			EditorGUILayout.PropertyField(_isLocked);
-			serializedObject.ApplyModifiedProperties();
-		}
-
+		
 		private void RenderColorPicker()
 		{
 			var colorIndexProperty = this.serializedObject.FindProperty("colorIndex");
