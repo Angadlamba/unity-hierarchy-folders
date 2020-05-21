@@ -22,21 +22,21 @@ namespace UnityHierarchyFolders.Editor
 
 		private void SetMaintainChildrenWorldPositions()
 		{
-			_worldPositionStays = serializedObject.FindProperty("_maintainChildrenWorldPositions");
+			_worldPositionStays = serializedObject.FindProperty("maintainChildrenWorldPositions");
 			EditorGUILayout.PropertyField(_worldPositionStays);
 			serializedObject.ApplyModifiedProperties();
 		}
 
 		private void SetLockFolder()
 		{
-			_isLocked = serializedObject.FindProperty("_isLocked");
+			_isLocked = serializedObject.FindProperty("isLocked");
 			EditorGUILayout.PropertyField(_isLocked);
 			serializedObject.ApplyModifiedProperties();
 		}
 
 		private void RenderColorPicker()
 		{
-			var colorIndexProperty = this.serializedObject.FindProperty("_colorIndex");
+			var colorIndexProperty = this.serializedObject.FindProperty("colorIndex");
 
 			EditorGUILayout.BeginHorizontal();
 			GUILayout.FlexibleSpace();
