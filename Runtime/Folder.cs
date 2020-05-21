@@ -134,6 +134,7 @@ namespace UnityHierarchyFolders.Runtime
 
 			HandleSubscribeToEditorUpdate();
 			HandleHidingTools();
+			HandleImSelected();
 			HandleChildIsSelected();
 			SetSelectedChildren();
 		}
@@ -143,7 +144,7 @@ namespace UnityHierarchyFolders.Runtime
 			if (transform.parent == null)
 				return;
 
-			foreach (var parent in _allParents)
+			foreach (var parent in _deepParents)
 			{
 				if (Selection.gameObjects.Contains(parent.gameObject) && _isLocked)
 					EditorApplication.update += ResetTransform;
@@ -155,26 +156,6 @@ namespace UnityHierarchyFolders.Runtime
 			EditorApplication.update -= ResetTransform;
 		}
 
-		private static List<Transform> RecursiveParentSearch(Transform child)
-		{
-			if (child.parent == null)
-				return new List<Transform>();
-
-			var parents = new List<Transform>();
-			
-			parents.Add(child.transform.parent);
-
-			if (child.transform.parent.parent != null)
-			{
-				foreach (var grandParent in RecursiveParentSearch(child.transform.parent))
-				{
-					parents.Add(grandParent);
-				}
-			}
-
-			return parents;
-		}
-		
 		private static void HandleHidingTools()
 		{
 			foreach (var go in Selection.gameObjects)
@@ -189,9 +170,17 @@ namespace UnityHierarchyFolders.Runtime
 			Tools.hidden = false;
 		}
 
+		private void HandleImSelected()
+		{
+			if (Selection.gameObjects.Contains(gameObject))
+				_imSelected = true;
+			else
+				_imSelected = false;
+		}
+		
 		private void HandleChildIsSelected()
 		{
-			foreach (var child in _allChildren)
+			foreach (var child in _deepChildren)
 			{
 				if (Selection.gameObjects.Contains(child.gameObject))
 				{
@@ -206,7 +195,7 @@ namespace UnityHierarchyFolders.Runtime
 		private void SetSelectedChildren()
 		{
 			_selectedChildren.Clear();
-			foreach (var child in _allChildren)
+			foreach (var child in _deepChildren)
 			{
 				if (Selection.gameObjects.Contains(child.gameObject))
 					_selectedChildren.Add(child);
@@ -232,34 +221,32 @@ namespace UnityHierarchyFolders.Runtime
 			}
 		}
 
-		private void Mouse0Pressed()
+		private void Mouse0Pressed() => TryRecordUndo();
+
+		private void TryRecordUndo()
 		{
 			if (gameObject.GetComponent<RectTransform>())
 				return;
 
-			if (_imSelected || _aChildOfMineIsSelected)
-				RecordUndo();
-		}
-
-		private void RecordUndo()
-		{
-			Undo.RegisterCompleteObjectUndo(transform, "Custom Undo");
-
-			if (!_aChildOfMineIsSelected)
+			if (!(_imSelected || _aChildOfMineIsSelected))
 				return;
-
-			foreach (var child in _selectedChildren)
-				Undo.RegisterCompleteObjectUndo(child, "Custom Undo");
+			
+			Undo.RegisterCompleteObjectUndo(transform, "Custom Undo");
+			Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
 
 			foreach (Transform child in transform)
 				Undo.RegisterCompleteObjectUndo(child, "Custom Undo");
+
+			if (_aChildOfMineIsSelected)
+			{
+				foreach (var child in _selectedChildren)
+					Undo.RegisterCompleteObjectUndo(child, "Custom Undo");
+			}
+
+			Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
 		}
 
-		private void Mouse0Released()
-		{
-			Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
-			UpdatePositionBasedOnChildrenBoundsCenter();
-		}
+		private void Mouse0Released() => UpdatePositionBasedOnChildrenBoundsCenter();
 
 		private void AddFolderData() => folders[gameObject.GetInstanceID()] = _colorIndex;
 
@@ -294,34 +281,48 @@ namespace UnityHierarchyFolders.Runtime
 			}
 			else
 			{
-				SetAllChildren();
+				SetDeepChildren();
 				CenterAtChildrenBoundingBox();
 				transform.hideFlags = HideFlags.None;
 				Tools.hidden = false;
 			}
 		}
-
+		
 		private void ResetTransformKeepChildrenInPlace()
 		{
-			var previousPosition = transform.position;
+			TryRecordUndo();
+			List<Vector3> previousChildrenPositions = new List<Vector3>();
+			List<Quaternion> previousChildrenRotations = new List<Quaternion>();
+			List<Vector3> previousChildrenScales = new List<Vector3>();
+
+			SetChildren();
+			
+			foreach (var child in _children)
+			{
+				previousChildrenPositions.Add(child.position);
+				previousChildrenRotations.Add(child.rotation);
+				previousChildrenScales.Add(child.lossyScale);
+			}
 
 			ResetTransform();
 
-			var positionChange = transform.position - previousPosition;
-
-			foreach (Transform child in transform)
-				child.transform.position -= positionChange;
+			for (int i = 0; i < _children.Count; i++)
+			{
+				_children[i].position = previousChildrenPositions[i];
+				_children[i].rotation = previousChildrenRotations[i];
+				_children[i].localScale = previousChildrenScales[i];
+			}
 		}
 
 		private void UpdatePositionBasedOnChildrenBoundsCenter()
 		{
-			if (_allChildren == null || _allChildren.Count <= 0)
+			if (_deepChildren == null || _deepChildren.Count <= 0)
 				return;
 
 			if (Selection.activeGameObject == null)
 				return;
 
-			if (!_allChildren.Contains(Selection.activeGameObject.transform))
+			if (!_deepChildren.Contains(Selection.activeGameObject.transform))
 				return;
 
 			CenterAtChildrenBoundingBox();
@@ -329,21 +330,47 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void OnHierarchyChanged()
 		{
-			SetAllChildren();
-			SetAllParents();
+			SetChildren();
+			SetDeepChildren();
+			SetDeepParents();
 			CenterAtChildrenBoundingBox();
 		}
 
-		private void SetAllParents()
+		private void SetChildren()
 		{
-			_allParents.Clear();
-			_allParents = RecursiveParentSearch(transform);
+			_children.Clear();
+			foreach (Transform child in transform)
+				_children.Add(child);
 		}
 
-		private void SetAllChildren()
+		private void SetDeepParents()
 		{
-			_allChildren.Clear();
-			_allChildren = RecursiveChildrenSearch(transform);
+			_deepParents.Clear();
+			_deepParents = RecursiveParentSearch(transform);
+		}
+
+		private static List<Transform> RecursiveParentSearch(Transform child)
+		{
+			if (child.parent == null)
+				return new List<Transform>();
+
+			var parents = new List<Transform>();
+
+			parents.Add(child.transform.parent);
+
+			if (child.transform.parent.parent != null)
+			{
+				foreach (var grandParent in RecursiveParentSearch(child.transform.parent))
+					parents.Add(grandParent);
+			}
+
+			return parents;
+		}
+		
+		private void SetDeepChildren()
+		{
+			_deepChildren.Clear();
+			_deepChildren = RecursiveChildrenSearch(transform);
 		}
 
 		private static List<Transform> RecursiveChildrenSearch(Transform parent)
@@ -365,8 +392,8 @@ namespace UnityHierarchyFolders.Runtime
 			}
 
 			return children;
-		}
-
+		}	
+		
 		private void CenterAtChildrenBoundingBox()
 		{
 			if (_isLocked)
@@ -378,7 +405,7 @@ namespace UnityHierarchyFolders.Runtime
 			if (transform.childCount <= 0)
 				return;
 
-			var childrenTransformCenter = GetChildrenTransformCenter(_allChildren);
+			var childrenTransformCenter = GetChildrenTransformCenter(_deepChildren);
 			var childrenBoundsCenter = GetChildrenBoundsCenter(childrenTransformCenter);
 			SetPositionAndCorrectChildren(childrenBoundsCenter);
 		}
@@ -387,10 +414,10 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			var transformsCenter = Vector3.zero;
 
-			foreach (var child in _allChildren)
+			foreach (var child in _deepChildren)
 				transformsCenter += child.position;
 
-			transformsCenter /= _allChildren.Count;
+			transformsCenter /= _deepChildren.Count;
 
 			return transformsCenter;
 		}
@@ -399,7 +426,7 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			var boundsCenter = new Bounds(center, Vector3.one);
 
-			foreach (var child in _allChildren)
+			foreach (var child in _deepChildren)
 			{
 				if (!child.GetComponent<Renderer>())
 					continue;
@@ -457,8 +484,9 @@ namespace UnityHierarchyFolders.Runtime
 		private bool _imSelected = false;
 		private bool _aChildOfMineIsSelected = false;
 		private List<Transform> _selectedChildren = new List<Transform>();
-		private List<Transform> _allChildren = new List<Transform>();
-		private List<Transform> _allParents = new List<Transform>();
+		private List<Transform> _children = new List<Transform>();
+		private List<Transform> _deepChildren = new List<Transform>();
+		private List<Transform> _deepParents = new List<Transform>();
 #endif
 	}
 }
