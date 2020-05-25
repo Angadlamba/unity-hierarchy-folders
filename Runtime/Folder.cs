@@ -73,8 +73,10 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void Start()
 		{
+			gameObject.transform.hideFlags = HideFlags.HideInInspector;
 			AddFolderData();
 			SubscribeToCallbacks();
+			ResetTransform();
 		}
 
 		private void OnDestroy()
@@ -87,12 +89,14 @@ namespace UnityHierarchyFolders.Runtime
 		{
 			AddFolderData();
 			EnsureExclusiveComponent();
+			ResetTransform();
 		}
 
 		private void Reset()
 		{
 			AddFolderData();
 			EnsureExclusiveComponent();
+			ResetTransform();
 		}
 
 		/// <summary>
@@ -112,16 +116,12 @@ namespace UnityHierarchyFolders.Runtime
 		private void AddFolderData()
 		{
 			folders[gameObject.GetInstanceID()] = colorIndex;
-			SetChildren();
-			SetDeepChildren();
 			SetDeepChildrenNoFolders();
 		}
 
 		private void RemoveFolderData()
 		{
 			folders.Remove(gameObject.GetInstanceID());
-			_children.Clear();
-			_deepChildren.Clear();
 			DeepChildrenNoFolders.Clear();
 		}
 
@@ -131,127 +131,23 @@ namespace UnityHierarchyFolders.Runtime
 			EditorApplication.hierarchyChanged += OnHierarchyChanged;
 		}
 
-		private void UnsubscribeToCallbacks()
-		{
-			Selection.selectionChanged -= OnSelectionChanged;
-			EditorApplication.hierarchyChanged -= OnHierarchyChanged;
-		}
-
 		private void OnSelectionChanged()
 		{
-			if (CheckAFolderIsSelected())
-				CenterAtChildrenBoundingBox();
-			else
-				ResetTransformKeepChildrenInPlace();
+			HandleHidingTools();
 		}
 
-		private bool CheckAFolderIsSelected()
+		private static void HandleHidingTools()
 		{
-			foreach (var go in Selection.gameObjects)
+			if (Selection.gameObjects.Any(go => go != null && go.GetComponent<Folder>()))
 			{
-				if (go.GetComponent<Folder>())
-					return true;
-			}
-
-			return false;
-		}
-
-		private bool CheckImSelected()
-		{
-			if (Selection.gameObjects == null || Selection.gameObjects.Length == 0)
-				return false;
-
-			return Selection.gameObjects.Contains(gameObject);
-		}
-
-		private void CenterAtChildrenBoundingBox()
-		{
-			if (gameObject.GetComponent<RectTransform>() || transform.childCount == 0)
+				Tools.hidden = true;
 				return;
-
-			var childrenTransformCenter = GetChildrenTransformCenter(DeepChildrenNoFolders);
-			var childrenBoundsCenter = GetChildrenBoundsCenter(childrenTransformCenter);
-			SetPositionAndCorrectChildren(childrenBoundsCenter);
-		}
-
-		private Vector3 GetChildrenTransformCenter(List<Transform> transforms)
-		{
-			var transformsCenter = Vector3.zero;
-
-			foreach (var child in transforms)
-				transformsCenter += child.position;
-
-			transformsCenter /= _deepChildren.Count;
-
-			return transformsCenter;
-		}
-
-		private Vector3 GetChildrenBoundsCenter(Vector3 center)
-		{
-			var boundsCenter = new Bounds(center, Vector3.one);
-
-			foreach (var child in _deepChildren)
-			{
-				if (!child.GetComponent<Renderer>())
-					continue;
-
-				boundsCenter.Encapsulate(child.GetComponent<Renderer>().bounds);
 			}
 
-			return boundsCenter.center;
+			Tools.hidden = false;
 		}
 
-		private void SetPositionAndCorrectChildren(Vector3 position)
-		{
-			var previousChildrenPositions = new List<Vector3>();
-			var previousChildrenRotations = new List<Quaternion>();
-			var previousChildrenScales = new List<Vector3>();
-
-			foreach (var child in _children)
-			{
-				previousChildrenPositions.Add(child.position);
-				previousChildrenRotations.Add(child.rotation);
-				previousChildrenScales.Add(child.lossyScale);
-			}
-
-			TryRecordUndo();
-			transform.position = position;
-
-			for (var i = 0; i < _children.Count; i++)
-			{
-				_children[i].position = previousChildrenPositions[i];
-				_children[i].rotation = previousChildrenRotations[i];
-				_children[i].localScale = previousChildrenScales[i];
-			}
-		}
-
-		//TODO: Does not work well with scaling nested folders
-		private void ResetTransformKeepChildrenInPlace()
-		{
-			if (gameObject.GetComponent<RectTransform>())
-				return;
-
-			var previousChildrenPositions = new List<Vector3>();
-			var previousChildrenRotations = new List<Quaternion>();
-			var previousChildrenScales = new List<Vector3>();
-
-			foreach (var child in _children)
-			{
-				previousChildrenPositions.Add(child.position);
-				previousChildrenRotations.Add(child.rotation);
-				previousChildrenScales.Add(child.lossyScale);
-			}
-
-			TryRecordUndo();
-			ResetTransform();
-
-			for (var i = 0; i < _children.Count; i++)
-			{
-				_children[i].position = previousChildrenPositions[i];
-				_children[i].rotation = previousChildrenRotations[i];
-				_children[i].localScale = previousChildrenScales[i];
-			}
-		}
+		private void UnsubscribeToCallbacks() => EditorApplication.hierarchyChanged -= OnHierarchyChanged;
 
 		private static List<Transform> RecursiveNonFolderChildrenSearch(Transform parent)
 		{
@@ -277,21 +173,7 @@ namespace UnityHierarchyFolders.Runtime
 
 			return children;
 		}
-
-		private void TryRecordUndo()
-		{
-			if (gameObject.GetComponent<RectTransform>())
-				return;
-
-			var currentGroup = Undo.GetCurrentGroup();
-			Undo.RegisterCompleteObjectUndo(transform, "Custom Undo");
-
-			foreach (Transform child in _children)
-				Undo.RegisterCompleteObjectUndo(child, "Custom Undo");
-
-			Undo.CollapseUndoOperations(currentGroup);
-		}
-
+		
 		private void ResetTransform()
 		{
 			if (gameObject.TryGetComponent<RectTransform>(out var rectTransform))
@@ -311,53 +193,7 @@ namespace UnityHierarchyFolders.Runtime
 			}
 		}
 
-		private void OnHierarchyChanged()
-		{
-			SetChildren();
-			SetDeepChildren();
-			SetDeepChildrenNoFolders();
-		}
-
-		private void SetChildren()
-		{
-			if (this == null)
-				return;
-
-			_children.Clear();
-			foreach (Transform child in transform)
-				_children.Add(child);
-		}
-
-		private void SetDeepChildren()
-		{
-			if (this == null)
-				return;
-
-			_deepChildren.Clear();
-			_deepChildren = RecursiveChildrenSearch(transform);
-		}
-
-		private static List<Transform> RecursiveChildrenSearch(Transform parent)
-		{
-			if (parent.childCount <= 0)
-				return new List<Transform>();
-
-			var children = new List<Transform>();
-
-			foreach (Transform child in parent)
-			{
-				children.Add(child);
-
-				if (child.childCount <= 0)
-					continue;
-
-				foreach (var grandChild in RecursiveChildrenSearch(child))
-					children.Add(grandChild);
-			}
-
-			return children;
-		}
-
+		private void OnHierarchyChanged() => SetDeepChildrenNoFolders();
 		private void SetDeepChildrenNoFolders()
 		{
 			if (this == null)
@@ -366,8 +202,7 @@ namespace UnityHierarchyFolders.Runtime
 			DeepChildrenNoFolders.Clear();
 			DeepChildrenNoFolders = RecursiveNonFolderChildrenSearch(transform);
 		}
-
-
+		
 		private bool AskDelete() => EditorUtility.DisplayDialog("Can't add script",
 		                                                        "Folders shouldn't be used with other components. Which component should be kept?",
 		                                                        "Folder",
@@ -401,9 +236,6 @@ namespace UnityHierarchyFolders.Runtime
 			else
 				DestroyImmediate(this);
 		}
-
-		private List<Transform> _children = new List<Transform>();
-		private List<Transform> _deepChildren = new List<Transform>();
 #endif
 	}
 }
