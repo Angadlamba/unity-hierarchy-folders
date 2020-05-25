@@ -7,7 +7,7 @@ Designed to help with project organization, maintaining flexibility, not affecti
 ## Features
 
 1. `Folder`s Deletes themselves on **Play** and **Build** while keeping all children in place. Helping project organization in Editor while keeping performance at runtime.
-2. Create a `Folder` by right-clicking in the Hierarchy and selecting "**Create Hierarchy Folder**".
+2. Create a `Folder` by right-clicking in the Hierarchy and selecting "**Folder/Create Hierarchy Folder**".
 3. Select the deep children of a `Folder` by right-clicking it and selecting **Folder/Select Deep Children**.
 4. `Folder`s are locked at **Pos: 0,0,0**; **Rot: 0,0,0**; **Scale: 1,1,1** making it so that all children `Transform` values will be equal to their worldspace values, making it more intuitive to work with them.
 5. Hides transformation tools while a `Folder` is selected to prevent accidental transformations.
