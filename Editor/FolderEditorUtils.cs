@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -13,7 +14,7 @@ namespace UnityHierarchyFolders.Editor
 
 		/// <summary>Add new folder "prefab".</summary>
 		/// <param name="command">Menu command information.</param>
-		[MenuItem("GameObject/" + _actionName, isValidateFunction : false, priority : 0)]
+		[MenuItem("GameObject/" + _actionName, false, 0)]
 		public static void AddFolderPrefab(MenuCommand command)
 		{
 			var obj = new GameObject { name = "Folder" };
@@ -25,6 +26,20 @@ namespace UnityHierarchyFolders.Editor
 				obj.AddComponent<RectTransform>();
 
 			Undo.RegisterCreatedObjectUndo(obj, _actionName);
+		}
+
+		[MenuItem("GameObject/Folder/Select Deep Children", false,0)]
+		public static void SelectDeepChildrenNoFolders(MenuCommand command)
+		{
+			var go = (GameObject)command.context;
+			if (go != null && go.TryGetComponent<Folder>(out var folder))
+			{
+				List<GameObject> deepChildrenGos = new List<GameObject>();
+				foreach (var child in folder.DeepChildrenNoFolders)
+					deepChildrenGos.Add(child.gameObject);
+				
+				Selection.objects = deepChildrenGos.ToArray();
+			}
 		}
 	}
 
