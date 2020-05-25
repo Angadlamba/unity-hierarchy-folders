@@ -82,11 +82,12 @@ namespace UnityHierarchyFolders.Runtime
 		private void OnDestroy()
 		{
 			RemoveFolderData();
-			UnsubscribeToCallbacks();
+			UnsubscribeFromCallbacks();
 		}
 
 		private void OnValidate()
 		{
+			gameObject.transform.hideFlags = HideFlags.HideInInspector;
 			AddFolderData();
 			EnsureExclusiveComponent();
 			ResetTransform();
@@ -94,6 +95,7 @@ namespace UnityHierarchyFolders.Runtime
 
 		private void Reset()
 		{
+			gameObject.transform.hideFlags = HideFlags.HideInInspector;
 			AddFolderData();
 			EnsureExclusiveComponent();
 			ResetTransform();
@@ -147,8 +149,8 @@ namespace UnityHierarchyFolders.Runtime
 			Tools.hidden = false;
 		}
 
-		private void UnsubscribeToCallbacks() => EditorApplication.hierarchyChanged -= OnHierarchyChanged;
-
+		private void UnsubscribeFromCallbacks() => EditorApplication.hierarchyChanged -= OnHierarchyChanged;
+		
 		private static List<Transform> RecursiveNonFolderChildrenSearch(Transform parent)
 		{
 			if (parent.childCount == 0)
@@ -164,13 +166,17 @@ namespace UnityHierarchyFolders.Runtime
 					{
 						children.Add(grandChild);
 					}
-
 					continue;
 				}
-
+				
 				children.Add(child);
+				
+				foreach (var grandChild in RecursiveNonFolderChildrenSearch(child))
+				{
+					children.Add(grandChild);
+				}
 			}
-
+			
 			return children;
 		}
 		

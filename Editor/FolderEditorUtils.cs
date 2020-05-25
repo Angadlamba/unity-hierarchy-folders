@@ -10,11 +10,9 @@ namespace UnityHierarchyFolders.Editor
 {
 	public static class FolderEditorUtils
 	{
-		private const string _actionName = "Create Hierarchy Folder";
+		private const string ActionName = "Create Hierarchy Folder";
 
-		/// <summary>Add new folder "prefab".</summary>
-		/// <param name="command">Menu command information.</param>
-		[MenuItem("GameObject/" + _actionName, false, 0)]
+		[MenuItem("GameObject/Folder/" + ActionName, false, 0)]
 		public static void AddFolderPrefab(MenuCommand command)
 		{
 			var obj = new GameObject { name = "Folder" };
@@ -25,7 +23,7 @@ namespace UnityHierarchyFolders.Editor
 			if (obj.transform.parent != null && obj.transform.parent.GetComponent<RectTransform>())
 				obj.AddComponent<RectTransform>();
 
-			Undo.RegisterCreatedObjectUndo(obj, _actionName);
+			Undo.RegisterCreatedObjectUndo(obj, ActionName);
 		}
 
 		[MenuItem("GameObject/Folder/Select Deep Children", false,0)]
