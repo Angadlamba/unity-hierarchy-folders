@@ -6,17 +6,16 @@ Designed to help with project organization, maintaining flexibility, not affecti
 
 ## Features
 
-1. Deletes themselves on **Play** and **Build** while keeping all children in place. Helping project organization in Editor while keeping performance at runtime.
-2. Can be **Translated**, **Rotated** and **Scaled** freely just like any `GameObject`, yes the children will maintain the `Transform` modifications after the Folders delete themselves. (Behaves as a pivot that is always centered at their children for easy manipulation).
-3. Can be locked to make working with it's children `Transform` values more intuitive. (Can be locked/unlocked as many times as necessary, at any time).
-4. Works just fine with `RectTransforms`. (You can simply work normally as if the Folder is not even there).
-5. Folder icon colors, for a little bit of customization.
+1. `Folder`s Deletes themselves on **Play** and **Build** while keeping all children in place. Helping project organization in Editor while keeping performance at runtime.
+2. Create a `Folder` by right-clicking in the Hierarchy and selecting "**Create Hierarchy Folder**".
+3. Select the deep children of a `Folder` by right-clicking it and selecting **Folder/Select Deep Children**.
+4. `Folder`s are locked at **Pos: 0,0,0**; **Rot: 0,0,0**; **Scale: 1,1,1** making it so that all children `Transform` values will be equal to their worldspace values, making it more intuitive to work with them.
+5. Hides transformation tools while a `Folder` is selected to prevent accidental transformations.
+6. Works just fine with `RectTransforms`. (*You can simply work normally as if the Folder is not even there*).
+7. Folder icon colors, for a little bit of customization.
 
 #### Observations
-> 1. For Folders to work correctly with `RectTransform`s it needs a `RectTransform` of it's own. To do this automatically just create a new Hierarchy Folder as a child of a `GameObject` that has a `RectTransform`, like a Canvas for example.
-> 2. Changing the Folder's ``RectTransform`` values is not advised in order to maintain consistent results, I decided against hiding it just in case anyone needs to use it, but using Folders with `RectTransform`s was designed to be *set & forget*.
-> 3. * Keep in mind that when a child is reparented it's `Transform` values change relative to its new parent's `Transform` values. If for some reason you have code that relies on a `GameObject` having very particular `Transform` values things will break if it is a child of a Folder, because, as expected, it will get reparented on **Play**/**Build** and it's `Transform` values will change (unless the Folder is locked). 
->    * Also, when reparented a child's scale gets multiplied by the parent's scale. I consider this a feature, but it may trip up people that are not expecting it to be the case. For best and consistent results do not scale a Folder if you can help it, if you need to scale something do it in the mesh itself.
+> For Folders to work correctly with `RectTransform`s it needs a `RectTransform` of it's own. To do this automatically just create a new Hierarchy Folder as a child of a `GameObject` that has a `RectTransform`, like a Canvas for example.
 
 ## Installation
 
@@ -45,11 +44,6 @@ Older versions of Unity may have to use the relative link, ie:
   }
 }
 ```
-
-A "Create Folder" menu item should show up in the GameObject menu. Add
-`Tests/Example.unity` to your current scene for an example of what hierarchy
-folders can do for you.
-
 The UPM does not have much documentation at the moment so it probably will be
 buggy, you're not going crazy!
 
